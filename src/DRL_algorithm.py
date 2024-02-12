@@ -36,50 +36,75 @@ def dqn_network(distance_sensor, action_dim):
     return tf.keras.Model(inputs = [X_input, X2_input], outputs = OUTPUT)    
     
 
+class duelingDQN(tf.keras.Model):
+    def __init__(self,action_dim):
+        super(duelingDQN, self).__init__()
+        # 1st Input stream        
+        self.conv1 = tf.keras.layers.Conv2D(filters=32,kernel_size=(8,8),strides=4, activation='relu')
+        self.conv2 = tf.keras.layers.Conv2D(filters=64,kernel_size=(4,4),strides=2, activation='relu')
+        self.conv3 = tf.keras.layers.Conv2D(filters=64,kernel_size=(3,3),strides=1, activation='relu')
+        self.flatten = tf.keras.layers.Flatten()
+
+        # 2nd Input stream
+        self.dense1 = tf.keras.layers.Dense(units=256, activation='relu')
+
+        # Concatenate layer
+        self.concat = tf.keras.layers.Concatenate(axis=1)
+
+        # V stream
+        self.V_dense = tf.keras.layers.Dense(units=256, activation='relu')        
+        self.V = tf.keras.layers.Dense(1, activation=None)
+
+        # A stream        
+        self.A_dense = tf.keras.layers.Dense(units=256, activation='relu')
+        self.A = tf.keras.layers.Dense(action_dim, activation=None)
+        
+    def call(self, state):        
+        # First input               
+        X1 = self.conv1(tf.expand_dims(state[0], axis=-1))
+        X1 = self.conv2(X1)
+        X1 = self.conv3(X1)
+        X1 = self.flatten(X1)
+
+        # Second input
+        X2 = self.dense1(state[1])
+
+        # Concatenate input streams
+        X = self.concat([X1, X2])
+
+        # V stream
+        V = self.V_dense(X)
+        V = self.V(V)
+
+        # A stream
+        A = self.A_dense(X)
+        A = self.A(A)
+
+        # Compute Q value
+        Q = (V - ( A - tf.math.reduce_mean(A, axis=1, keepdims=True)))
+
+        return Q
+
+    def advantage(self, state):
+        # First input
+        X1 = self.conv1(tf.expand_dims(state[0], axis=-1))
+        X1 = self.conv2(X1)
+        X1 = self.conv3(X1)
+        X1 = self.flatten(X1)
+
+        # Second input
+        X2 = self.dense1(state[1])
+
+        # Concatenate input streams
+        X = self.concat([X1, X2])
+
+        # A stream
+        A = self.A_dense(X)
+        A = self.A(A)
+
+        return A 
     
-
-
     
-
-
-
-
-def duelingDQN(input_dim, distance_sensor, fc1_units, fc2_units, action_dim, lr):
-    X_input = tf.keras.layers.Input(input_dim)
-    X2_input = tf.keras.layers.Input(distance_sensor)
-    X = X_input
-    X2 = X2_input
-
-    X = tf.keras.layers.Conv2D(filters=64,kernel_size=(8,8),strides=4)(X)
-    X = tf.keras.layers.ReLU()(X)
-    X = tf.keras.layers.Conv2D(filters=32,kernel_size=(4,4),strides=2)(X) 
-    X = tf.keras.layers.ReLU()(X)
-    X = tf.keras.layers.Conv2D(filters=32,kernel_size=(3,3),strides=1)(X)
-    X = tf.keras.layers.ReLU()(X)
-    X = tf.keras.layers.Flatten()(X)
-
-    X2 = tf.keras.layers.Dense(units=256)(X2)    
-
-    X_X2 = tf.keras.layers.Concatenate(axis=1)([X, X2]) 
-
-    V = tf.keras.layers.Dense(units=fc1_units)(X_X2)
-    V = tf.keras.layers.ReLU()(V)
-    V = tf.keras.layers.Dense(1, activation=None)(V)
-    V = tf.keras.layers.Lambda(lambda s: backend.expand_dims(s[:, 0], -1), output_shape=(action_dim,))(V)
-    
-    A = tf.keras.layers.Dense(units=fc2_units)(X_X2)
-    A = tf.keras.layers.ReLU()(A)
-    A = tf.keras.layers.Dense(action_dim, activation=None)(A)
-    A = tf.keras.layers.Lambda(lambda a: a[:, :] - backend.mean(a[:, :], keepdims=True), output_shape=(action_dim,))(A)
-    
-
-    X_X2 = tf.keras.layers.Add()([V, A])
-    
-    model = tf.keras.Model(inputs = [X_input, X2_input], outputs = X_X2)    
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr), loss='mse') 
-    model.summary()   
-    
-    return model
 
 class DRL_algorithm:
 
@@ -90,10 +115,10 @@ class DRL_algorithm:
         
         # Epsilon greedy exploration parameters
         self.epsilon = 1.0
-        self.epsilon_final = 0.1          
+        self.epsilon_final = 0.01          
 
-        self.epsilon_interval = 1.0 - 0.1
-        self.epsilon_greedy_frames = 300_000.0
+        self.epsilon_interval = 1.0 - self.epsilon_final
+        self.epsilon_greedy_frames = 1_000_000.0
 
 
 
@@ -121,7 +146,7 @@ class DRL_algorithm:
         #input_dim = [405,410,1]
 
         self.discount = 0.99
-        self.mse_loss = 0
+        self.mean_loss = 0
 
         self.action = 0
         self.same_action_counter = 0
@@ -129,16 +154,26 @@ class DRL_algorithm:
         ####### MODELS
         self.loss_function = tf.keras.losses.Huber()
         #self.loss_function = nn.HuberLoss()
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.00025, clipnorm=1.0)
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.00015)
         # Q network
-        #self.q_net = duelingDQN(input_dim, 4, fc1_units, fc2_units, self.action_dim, lr)
-        self.q_net = dqn_network(4, self.action_dim)        
+        self.q_net = duelingDQN(self.action_dim)
+        #self.q_net = dqn_network(4, self.action_dim)        
         self.q_net.compile(optimizer=self.optimizer, loss=self.loss_function)
         #visualkeras.layered_view(self.q_net, legend=True, to_file='model.png') # write to disk   
         # Q target network
-        self.q_target_net = copy.deepcopy(self.q_net)
+        self.q_target_net = duelingDQN(self.action_dim)
+        self.q_target_net.compile(optimizer=self.optimizer, loss=self.loss_function)
         # Copy weights
         self.q_target_net.set_weights(self.q_net.get_weights())        
+        # Learning rate decay
+        self.lr_decay = tf.keras.callbacks.ReduceLROnPlateau(
+            monitor="val_loss",
+            factor=0.9,
+            patience=2,           
+            min_lr=0.000001,            
+            )
+        self.episodes = 1
+
     
     def policy(self, state, lidar_state):
         if (np.random.uniform(0.0,1.0) < self.epsilon) or (self.memory.experience_ind <= self.replay_exp_initial_condition): 
@@ -169,29 +204,9 @@ class DRL_algorithm:
             lidar_states = np.reshape(lidar_states, (1, len(lidar_state)))            
                 
             # Prediction
-            actions = self.q_net.predict([img_state, lidar_states])            
-            '''
-            # Epsilon greedy exploration in the network output
-            if np.random.uniform(0.0,1.0) < self.epsilon_action:
-                # Select the second max Q value                
-                # Sorting indices                
-                sorted_indices = tf.argsort(actions, direction='DESCENDING')                
-                # Get the second max Q value index = action                
-                action = sorted_indices[0, 1].numpy()                
-                # Counter of repeated action in the previous step
-                if self.action == action:
-                    self.same_action_counter += 1
-                self.action = action               
-            else:                 
-                # Selecting the action with max Q value
-                action = tf.math.argmax(actions, axis=1).numpy()[0]
-                # Counter of repeated action in the previous step
-                if self.action == action:
-                    self.same_action_counter += 1
-                self.action = action
-            '''
+            A = self.q_net.advantage([img_state, lidar_states])                        
             
-            action = tf.math.argmax(actions, axis=1).numpy()[0]
+            action = tf.math.argmax(A, axis=1).numpy()[0]
                 # Counter of repeated action in the previous step
             if self.action == action:
                 self.same_action_counter += 1
@@ -200,25 +215,32 @@ class DRL_algorithm:
             if self.same_action_counter == 30:                
                 action = int(np.random.choice(4,1))                                    
 
-            # Update epsilon
-            #self.epsilon_action = self.epsilon_action - self.epsilon_action_decay if self.epsilon_action > self.epsilon_action_final else self.epsilon_action_final
             return action
         
     def train(self):
         # Start training condition
         if self.memory.experience_ind <= self.replay_exp_initial_condition:
             self.training_finished = True
-            return
+            return            
         # Sampling minibatch        
         #minibatch_weights, minibatch_tree_idx, states_batch, lidar_c_states, rewards_batch, minibatch_actions, next_states_batch, lidar_n_states, dones_batch = self.memory.sample(self.batch_size)
         states_batch, lidar_c_states, rewards_batch, minibatch_actions, next_states_batch, lidar_n_states, dones_batch = \
             self.memory.sample(self.batch_size)
         # Prediction with Q network     
-        
+                
+        #minibatch_actions_tensor = tf.convert_to_tensor(minibatch_actions, dtype=tf.int32) 
+        #print(minibatch_actions_tensor)
         #q_preds = self.q_net([states_batch, lidar_c_states])         
         # Select the max Qs of the samples
         #q_preds = tf.math.reduce_max(q_preds, axis=1).numpy()       
-        q_preds = self.q_net([states_batch, lidar_c_states])
+        q_preds = self.q_net([states_batch, lidar_c_states])        
+         
+        #print(type(minibatch_actions))
+        #print(minibatch_actions)
+        #print(q_preds)
+        #print(tf.Tensor(minibatch_actions))
+        #q_preds = q_preds[indices, tf.Tensor(minibatch_actions)]
+        #print(q_preds)
         # Select the actions in each next states of the samples
         q_eval = self.q_net([next_states_batch, lidar_n_states])
         next_max_actions = np.argmax(q_eval, axis=1)
@@ -226,7 +248,7 @@ class DRL_algorithm:
         q_next_preds = self.q_target_net([next_states_batch, lidar_n_states])        
         
         # Create variables for the next steps
-        q_target = np.copy(q_preds)               
+        q_target = q_preds.numpy()             
         #errors = np.empty_like(next_actions)              
         
         # Double DQN algorithm
@@ -245,34 +267,17 @@ class DRL_algorithm:
         print("Training... ")        
         # Training network
          # Create a mask so we only calculate loss on the updated Q-values        
-        '''
-        masks = tf.one_hot(minibatch_actions, self.action_dim)                
         
-
-        with tf.GradientTape() as tape:
-            # Train the model on the states and updated Q-values                        
-            # Apply the masks to the Q-values to get the Q-value for action taken
-            q_action = tf.reduce_sum(tf.multiply(q_preds, masks), axis=1)                      
-            
-            # Calculate loss between new Q-value and old Q-value
-            loss = self.loss_function(q_target, q_action)
-        
-        # Backpropagation
-        grads = tape.gradient(loss, self.q_net.trainable_variables)
-        
-        self.optimizer.apply_gradients(zip(grads, self.q_net.trainable_variables))
-
-        print("HEREEEEEEEEEEEEE")
-
-        '''
         #metrics = self.q_net.train_on_batch(x= [states_batch, lidar_c_states], y= q_target, sample_weight=minibatch_weights, return_dict=True)
         metrics = self.q_net.train_on_batch(x= [states_batch, lidar_c_states], y= q_target, return_dict=True)
         # Update priorities
         #self.memory.update(minibatch_tree_idx, errors)        
         # Save loss metric
+        #self.lr_decay.on_epoch_end(self.episodes)
+        #config = self.q_net.optimizer.get_config()
+        #print(config['learning_rate'])
         
-        
-        self.mse_loss = np.mean(metrics['loss'])
+        self.mean_loss = np.mean(metrics['loss'])
         
 
         
@@ -284,8 +289,9 @@ class DRL_algorithm:
         # Polyak's Average
         #self.soft_update()
         self.update_network_counter += 1
+        self.episodes += 1
 
-        if self.update_network_counter == 8000:
+        if self.update_network_counter == 200:
             # Copy weights
             self.q_target_net.set_weights(self.q_net.get_weights())
             self.update_network_counter = 1
