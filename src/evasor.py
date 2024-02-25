@@ -11,7 +11,7 @@ class Evasor:
         self.robot = None    
     
     def spawn(self, surface):
-        self.robot = pygame.draw.circle(surface, self.color, (self.position[0], self.position[1]), 20)        
+        self.robot = pygame.draw.circle(surface, self.color, (self.position[0], self.position[1]), 8)        
     
     def controls(self, event=None):
         if event is not None:

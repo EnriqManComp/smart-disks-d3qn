@@ -2,7 +2,6 @@ import os
 import pandas as pd
 import numpy as np
 from PIL import Image
-import cv2
 
 
 class ReplayBuffer:
@@ -82,26 +81,29 @@ class ReplayBuffer:
 
         for i, data_index in enumerate(batch):
             ### Get data
-            # Getting current state            
-            minibatch_current_state[i, :, :] = np.array(Image.open(f"./dataset/{data_index}/current_state/c_s.png")) / 255.0                                
-            lidar_current_state = np.array(pd.read_csv(f"./dataset/{data_index}/current_state/lidar.csv", header=0))
-            minibatch_lidar_c_state[i, :] = lidar_current_state
-            # Getting next state
-            #for j in range(4):
-            
-            minibatch_next_state[i, :, :] = np.array(Image.open(f"./dataset/{data_index}/next_state/n_s.png")) / 255.0
-            lidar_next_state = np.array(pd.read_csv(f"./dataset/{data_index}/next_state/lidar.csv", header=0))
-            minibatch_lidar_n_state[i, :] = lidar_next_state
-                       
-            ard = pd.read_csv(f"./dataset/{data_index}/ard/ard.csv", header=0)          
-            
-            
-            
-            minibatch_rewards.append(ard['reward'])
-            
-            minibatch_actions.append(self.ACTIONS[ard['action'].values[0]])
-            minibatch_dones.append(ard['done'])
-
+            # Getting current state
+            try:            
+                minibatch_current_state[i, :, :] = np.array(Image.open(f"./dataset/{data_index}/current_state/c_s.png")) / 255.0                                
+                lidar_current_state = np.array(pd.read_csv(f"./dataset/{data_index}/current_state/lidar.csv", header=0))
+                minibatch_lidar_c_state[i, :] = lidar_current_state
+                # Getting next state
+                #for j in range(4):
+                
+                minibatch_next_state[i, :, :] = np.array(Image.open(f"./dataset/{data_index}/next_state/n_s.png")) / 255.0
+                lidar_next_state = np.array(pd.read_csv(f"./dataset/{data_index}/next_state/lidar.csv", header=0))
+                minibatch_lidar_n_state[i, :] = lidar_next_state
+                        
+                ard = pd.read_csv(f"./dataset/{data_index}/ard/ard.csv", header=0)          
+                
+                
+                
+                minibatch_rewards.append(ard['reward'])
+                
+                minibatch_actions.append(self.ACTIONS[ard['action'].values[0]])
+                minibatch_dones.append(ard['done'])
+            except Exception as e:
+                batch_temp = np.random.choice(self.storage, 1, replace=False)
+                
 
         return minibatch_current_state, minibatch_lidar_c_state,\
                   np.array(minibatch_rewards), np.array(minibatch_actions), minibatch_next_state, minibatch_lidar_n_state, np.array(minibatch_dones)
