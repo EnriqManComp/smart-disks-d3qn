@@ -357,5 +357,4 @@ gc.enable()
 gc.collect()
 if train:
     Environment().run()
-else:
-    Environment().test()
+
