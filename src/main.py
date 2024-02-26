@@ -1,7 +1,16 @@
 """
+Author: Enrique Manuel Companioni Valle
+Date: 25/04/2021
+Description: This script is the main file to run the Deep Reinforcement Learning algorithm to solve the evasor-pursuiter problem.
+The algorithm is based on the Deep Q-Learning algorithm. The environment is designed using the Pygame library.
+The algorithm is implemented using the TensorFlow library.
+The algorithm is trained using the Random Sample Experience Replay method.
 
-Developed by: Enrique Manuel Companioni Valle
-
+The code defines the `Environment` class, which represents the game environment for the Deep Reinforcement Learning algorithm.
+It contains methods to initialize the environment, run the game algorithm, and handle the game logic.
+The environment consists of a Pygame window, obstacles, players (pursuiter and evasor), and a sensor.
+The algorithm uses the Deep Q-Learning algorithm to train the pursuiter to catch the evasor while avoiding obstacles.
+The algorithm is trained using the Random Sample Experience Replay method, which stores and replays past experiences to improve learning.
 """
 #################################### 
 ##         Import Libraries       ##
@@ -47,13 +56,19 @@ class Environment:
         self.utils = Utils(self.obstacles, self.sensor)
 
         ##### CONSTANT PARAMETERS
+        # Episodes
+        self.EPISODES = 10_000
         # Possible Actions
         self.ACTIONS = {
             0: "NO ACTION",            
             1: "UP",
             2: "DOWN",
             3: "LEFT",
-            4: "RIGHT" 
+            4: "RIGHT",
+            5: "DOUBLE-UP",
+            6: "DOUBLE-DOWN",
+            7: "DOUBLE-LEFT",
+            8: "DOUBLE-RIGHT" 
         }
         # Possible rewards
         self.REWARDS = {
@@ -71,53 +86,37 @@ class Environment:
         ###### Deep Reinforcement Learning algorithm
         self.drl_algorithm = DRL_algorithm(self.memory, self.replay_exp_initial_condition)
 
+        # Run parameters
+        self.current_state = np.empty((200,200,3))
+        self.next_state = np.empty((200,200,3))
+        self.done = False
+
+        # Metric parameters
+        self.losses = []
+        self.record_scores = []
+        self.record_losses = []
+
+        #### Players
+        self.pursuiter = Pursuiter()
+        self.evasor = Evasor()
+
+        ## triggers
+        self.restart_params_trigger = False
+        self.start_new_cycle_trigger = True
+        self.save_exp_trigger = False
+        self.training_trigger = False
+
+
     def run(self):              
         """
             This method run the game algorithm
         """
 
-        ######## ALGORITHM PARAMETERS
-
-        done = False
-        counter = 0
-        current_state = np.empty((200,200,3))
-        next_state = np.empty((200,200,3))
-        reward = 0
-        losses = []
-        scores = 0.0
-        run_time = 1
-        train_counter = 1
-
         ######## TRIGGERS
         
-        # 1st step
-        restart_params_trigger = False
-        # 2nd step
-        start_new_cycle_trigger = True
-        # 3rd step
-        current_state_trigger = False
-        # 4th step
-        action_delay = False
-        # 5th step
-        next_state_trigger = False
-        # 6th step
-        collision_trigger = False
-        # 7th step
-        save_exp_trigger = False
-        # 8th step
-        training_trigger = False
-        
-        ##### PLAYERS
+       
 
-        # Pursuiter
-        pursuiter = Pursuiter()
-        # Evasor
-        evasor = Evasor()              
-
-        EPISODES = 10_000
-        save_net_indicator = 1
-        record_scores = []
-        record_losses = []
+        save_net_indicator = 1        
         
         load = False
         if load:                                   
@@ -127,38 +126,24 @@ class Environment:
             self.drl_algorithm.load_net(293)
             save_net_indicator = 294
             
-        for epis in range(1, EPISODES+1):
+        for epis in range(1, self.EPISODES+1):
             ##### Restart the initial parameters in each episode
-            done = False
-            counter = 0
-            current_state = np.empty((200,200,3))
-            next_state = np.empty((200,200,3))
-            captured=[]
+            self.done = False           
+            
             reward = 0
             losses = []
             scores = 0.0
-            run_time = 1
-            train_counter = 1
-
-            timer = 0
+            run_time = 1           
 
             ##### TRIGGERS
             # 1st step
-            restart_params_trigger = False
+            self.restart_params_trigger = False
             # 2nd step
-            start_new_cycle_trigger = True
+            self.start_new_cycle_trigger = True
             # 3rd step
-            current_state_trigger = False
+            self.save_exp_trigger = False
             # 4th step
-            action_delay = False
-            # 5th step
-            next_state_trigger = False
-            # 6th step
-            collision_trigger = False
-            # 7th step
-            save_exp_trigger = False
-            # 8th step
-            training_trigger = False
+            self.training_trigger = False
 
             # Spawn the agents and draw the environment
             self.screen.fill((138,138,138))
@@ -166,34 +151,34 @@ class Environment:
 
             print("STARTING RESPAWN")
 
-            evasor.position = []
-            pursuiter.position = []
+            self.evasor.position = []
+            self.pursuiter.position = []
             self.sensor.position = []
             x, y = self.utils.random_spawn(evasor_spawn=True)
-            evasor.position.append(x)            
-            evasor.position.append(y)
-            evasor.spawn(self.screen)
+            self.evasor.position.append(x)            
+            self.evasor.position.append(y)
+            self.evasor.spawn(self.screen)
 
-            x, y = self.utils.random_spawn(evasor.position, self.screen, evasor, evasor_spawn=False)
-            pursuiter.position.append(x)            
-            pursuiter.position.append(y)
-            pursuiter.spawn(self.screen)
+            x, y = self.utils.random_spawn(self.evasor.position, self.screen, self.evasor, evasor_spawn=False)
+            self.pursuiter.position.append(x)            
+            self.pursuiter.position.append(y)
+            self.pursuiter.spawn(self.screen)
 
-            self.sensor.position.append(pursuiter.position[0])
-            self.sensor.position.append(pursuiter.position[1])
+            self.sensor.position.append(self.pursuiter.position[0])
+            self.sensor.position.append(self.pursuiter.position[1])
             
             self.sensor.lidar(self.screen)
             self.screen.fill((138,138,138))
             self.obstacles.render_walls()
-            evasor.spawn(self.screen)
-            pursuiter.spawn(self.screen)         
+            self.evasor.spawn(self.screen)
+            self.pursuiter.spawn(self.screen)         
             # Update the screen
             pygame.display.update()             
             
             
                            
             print("######################################################EPISODE: ", epis)
-            while (run_time <= 600) and (not done):
+            while (run_time <= 600) and (not self.done):
                 # Run the game algorithm
                 print("Run time: ", run_time)
                 for event in pygame.event.get():
@@ -203,49 +188,46 @@ class Environment:
                     
                 ########### Restart parameters
                         
-                if restart_params_trigger:                    
+                if self.restart_params_trigger:                    
                     ### Save metrics
                     # Save score
                     scores += reward
                     # Save losses in each training steps
                     if self.memory.experience_ind > self.replay_exp_initial_condition:                      
-                        losses.append(self.drl_algorithm.mean_loss)                        
+                        self.losses.append(self.drl_algorithm.mean_loss)                        
                     # Check end episode condition
-                    if (done) or (scores == 1000):
+                    if (self.done) or (scores == 1000):
                         break
                     # Increase run time 
                     run_time += 1      
                     # Set the dimensions of the states          
-                    current_state = np.empty((200,200,3))
-                    next_state = np.empty((200,200,3))
-                    captured = []
+                    self.current_state = np.empty((200,200,3))
+                    self.next_state = np.empty((200,200,3))
+                    
                     # Restart the loss of the DRL algorithm                 
                     self.drl_algorithm.mean_loss = []                    
                     # Restart the trigger cycle
                     self.drl_algorithm.training_finished = False
                     restart_params_trigger = False                
-                    start_new_cycle_trigger = True
+                    self.start_new_cycle_trigger = True
                 
                 ########### CAPTURE CURRENT STATE
                     
-                if start_new_cycle_trigger:                
+                if self.start_new_cycle_trigger:                
                     # Get current state
-                    frame_timer = pygame.time.get_ticks()
-
-                    current_state = self.get_capture()
-                    captured.append(current_state)
+                    self.current_state = self.get_capture()                    
                     
                     ###### EXECUTE THE ACTION 
                     # Get lidar observation
-                    lidar_current_state = self.utils.lidar_observations(pursuiter.position[0], pursuiter.position[1], evasor)
+                    lidar_current_state = self.utils.lidar_observations(self.pursuiter.position[0], self.pursuiter.position[1], self.evasor)
                     # Select an action
-                    action = self.drl_algorithm.policy(current_state, lidar_current_state)  
+                    action = self.drl_algorithm.policy(self.current_state, lidar_current_state)  
                     action = self.ACTIONS[action]                
                     print(action)               
                     # Execute the action selected
-                    pursuiter.controls(action= action)                               
+                    self.pursuiter.controls(action= action)                               
                     # Update the position of the lidar rectangles
-                    self.sensor.update_position(pursuiter.position)
+                    self.sensor.update_position(self.pursuiter.position)
 
                     ######## DRAW ZONE
                     # Draw the window with the updates
@@ -256,63 +238,62 @@ class Environment:
                     # Draw obstacles                    
                     self.obstacles.render_walls()
                     # Draw pursuiter
-                    pursuiter.spawn(self.screen)                         
+                    self.pursuiter.spawn(self.screen)                         
                     # Draw evasor
-                    evasor.spawn(self.screen)                                                           
+                    self.evasor.spawn(self.screen)                                                           
                     
                     ####### END DRAW ZONE
                 
                     ###########  CAPTURE NEXT STATE 
-                    next_state = self.get_capture()
+                    self.next_state = self.get_capture()
                     # Get lidar next state observations
-                    lidar_next_state = self.utils.lidar_observations(pursuiter.position[0], pursuiter.position[1], evasor)                                
+                    lidar_next_state = self.utils.lidar_observations(self.pursuiter.position[0], self.pursuiter.position[1], self.evasor)                                
                     
                     ######### CHECK COLLISIONS
                                         
-                    pursuiter_collision_condition = self.utils.collision(pursuiter.robot, evasor.robot, pursuiter.position, evasor.position)
+                    pursuiter_collision_condition = self.utils.collision(self.pursuiter.robot, self.evasor.robot, self.pursuiter.position, self.evasor.position)
                     print(pursuiter_collision_condition)
                     if pursuiter_collision_condition == "COLLISION" or pursuiter_collision_condition == "GOAL-COLLISION-EVASOR":
-                        done = True           
+                        self.done = True           
                     
                     ######## GET REWARD
                     reward = self.REWARDS[pursuiter_collision_condition]
                     
                     # Activate and deactivate step triggers
-                    save_exp_trigger = True
-                    collision_trigger = False           
+                    self.save_exp_trigger = True                   
                 
                 ########## SAVE EXPERIENCE 
                 
-                if save_exp_trigger:      
+                if self.save_exp_trigger:      
                     # Add experience in memory                   
-                    experience = [current_state, lidar_current_state, action, reward, next_state, lidar_next_state, done]
+                    experience = [self.current_state.copy(), lidar_current_state, action, reward, self.next_state.copy(), lidar_next_state, self.done]
                     self.memory.add(experience)          
                     
                     # Next step (TRAINING NETWORK)                                               
-                    save_exp_trigger = False 
-                    start_new_cycle_trigger = False
-                    training_trigger = True                                                
+                    self.save_exp_trigger = False 
+                    self.start_new_cycle_trigger = False
+                    self.training_trigger = True                                                
 
-                if training_trigger:                
+                if self.training_trigger:                
                     # Train the model
                     self.drl_algorithm.train()           
                     # Wait until the training has been completed.
                     while not self.drl_algorithm.training_finished:
                         continue
-                    restart_params_trigger = True
+                    self.restart_params_trigger = True
            
                 # Update the display
                 pygame.display.update()                
             
             print("END RUN TIME")
             # Save scores of the episode
-            record_scores.append(scores)
+            self.record_scores.append(scores)
             # Fill with 0.0 the empty losses
-            if len(losses) == 0:
-                record_losses.append(0.0)
+            if len(self.losses) == 0:
+                self.record_losses.append(0.0)
             else:
                 # Save the mean of the episode losses                                  
-                record_losses.append(np.mean(losses))
+                self.record_losses.append(np.mean(losses))
             # Restart the losses variable
             losses = []
             # Check if the algorithm is still in the non-training phase.
@@ -323,13 +304,13 @@ class Environment:
                     self.drl_algorithm.save_results('./records/networks', save_net_indicator)
                     # Save network records
                     with open("./records/save_network.txt", 'a') as file:
-                        file.write("Save: {0}, Episode: {1}/{2}, Score: {3}, Epsilon: {4}, Play_time: {5}, Spawn distance: {6}\n".format(save_net_indicator, epis, EPISODES, scores, self.drl_algorithm.epsilon, run_time, self.utils.spawn_eucl_dist))
+                        file.write("Save: {0}, Episode: {1}/{2}, Score: {3}, Epsilon: {4}, Play_time: {5}, Spawn distance: {6}\n".format(save_net_indicator, epis, self.EPISODES, scores, self.drl_algorithm.epsilon, run_time, self.utils.spawn_eucl_dist))
                     save_net_indicator += 1
             # Save records and model each 100 episodes.
             if epis % 100 == 0:        
                 # Save scores and losses
                 with open("./records/save_records.txt", 'a') as file:
-                    file.write("Scores: {0}, Losses: {1}\n".format(record_scores, record_losses))
+                    file.write("Scores: {0}, Losses: {1}\n".format(self.record_scores, self.record_losses))
                 
                 # Save memory data
                 data_ptr = pd.Series(self.memory.experience_ind)
@@ -337,12 +318,12 @@ class Environment:
 
                 
                 # Restart the record scores and losses
-                record_scores = []
-                record_losses = []
+                self.record_scores = []
+                self.record_losses = []
             if epis % 500 == 0:
                 # Save model record
                 with open("./records/save_network.txt", 'a') as file:
-                    file.write("Save: {0}, Episode: {1}/{2}, Score: {3}, Epsilon: {4}, Play_time: {5}, Spawn distance: {6}\n".format(save_net_indicator, epis, EPISODES, scores, self.drl_algorithm.epsilon, run_time, self.utils.spawn_eucl_dist))
+                    file.write("Save: {0}, Episode: {1}/{2}, Score: {3}, Epsilon: {4}, Play_time: {5}, Spawn distance: {6}\n".format(save_net_indicator, epis, self.EPISODES, scores, self.drl_algorithm.epsilon, run_time, self.utils.spawn_eucl_dist))
                 # Save the weights of the model
                 self.drl_algorithm.save_results('./records/networks', save_net_indicator)
                 # Increase the save model counter
@@ -364,10 +345,9 @@ class Environment:
         # Blit the screen on the Surface
         capture.blit(self.screen, (0, 0))
         # Convert from Surface to Array
-        
-        captured = pygame.surfarray.array3d(capture)
+               
         # Return the capture
-        return captured    
+        return pygame.surfarray.array3d(capture)
 
     def test(self):
         """

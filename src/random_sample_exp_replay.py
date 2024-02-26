@@ -38,7 +38,8 @@ class ReplayBuffer:
 
         current_cap = Image.fromarray(experience[0]).convert('L')                    
         current_cap = current_cap.rotate(-90)
-        current_cap = current_cap.transpose(Image.FLIP_LEFT_RIGHT)                       
+        current_cap = current_cap.transpose(Image.FLIP_LEFT_RIGHT)  
+        current_cap = current_cap.resize((84,84))                     
         current_cap.save(f"./dataset/{self.experience_ind}/current_state/c_s.png")          
         
         lidar_current_state = pd.DataFrame(np.array(experience[1]).reshape(1, len(experience[1])))        
@@ -49,6 +50,7 @@ class ReplayBuffer:
         next_cap = Image.fromarray(experience[4]).convert('L')                       
         next_cap = next_cap.rotate(-90)
         next_cap = next_cap.transpose(Image.FLIP_LEFT_RIGHT)        
+        next_cap = next_cap.resize((84,84))
         next_cap.save(f"./dataset/{self.experience_ind}/next_state/n_s.png")
 
         lidar_next_state = pd.DataFrame(np.array(experience[5]).reshape(1, len(experience[5])))
@@ -101,8 +103,10 @@ class ReplayBuffer:
                 
                 minibatch_actions.append(self.ACTIONS[ard['action'].values[0]])
                 minibatch_dones.append(ard['done'])
+                
             except Exception as e:
-                batch_temp = np.random.choice(self.storage, 1, replace=False)
+                print(e)
+                
                 
 
         return minibatch_current_state, minibatch_lidar_c_state,\

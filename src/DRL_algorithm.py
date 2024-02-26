@@ -1,14 +1,15 @@
 import numpy as np
-import tensorflow as tf
+#import tensorflow as tf
 from PIL import Image
 import pandas as pd
-#import visualkeras
-
-
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import os
 
 
 ######## NETWORK ARCHITECTURE
-
+'''
 class duelingDQN(tf.keras.Model):
     def __init__(self,action_dim):
         super(duelingDQN, self).__init__()
@@ -23,8 +24,6 @@ class duelingDQN(tf.keras.Model):
         self.dropout = tf.keras.layers.Dropout(0.2)  
         self.dense2 = tf.keras.layers.Dense(units=64, activation='relu')
         
-        
-
         # Concatenate layer
         self.concat = tf.keras.layers.Concatenate(axis=1)
 
@@ -86,8 +85,67 @@ class duelingDQN(tf.keras.Model):
         A = self.A(A)
 
         return A 
+''' 
+class duelingDQN(nn.Module):
+    def __init__(self, action_dim, chkpt_dir, name):
+        super(duelingDQN, self).__init__()
+        
+        self.chkpt_dir = chkpt_dir
+        self.checkpoint_file = os.path.join(self.chkpt_dir, name)
+
+        # 1st Input stream 
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=8, stride=4)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        
+        # 2nd Input Stream
+        self.dense1 = nn.Linear(4, 64)
+        self.dense2 = nn.Linear(64, 64)
+
+        # V stream
+        self.V_dense = nn.Linear(256, 256)
+        self.V = nn.Linear(256, 1)
+
+        # A stream
+        self.A_dense = nn.Linear(256, 256)
+        self.A = nn.Linear(256, action_dim)
+
+        self.optimizer = torch.optim.RMSprop(self.parameters(), lr=0.00025)
+        self.loss = nn.MSELoss(reduction='none')
+
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.to(self.device)
+
+    def forward(self, state):
+        # First input
+        X1 = F.relu(self.conv1(state[0]))
+        X1 = F.relu(self.conv2(X1))
+        X1 = F.relu(self.conv3(X1))
+        X1 = torch.flatten(X1)
+
+        # Second input
+        X2 = F.relu(self.dense1(state[1]))
+        X2 = F.relu(self.dense2(X2))
+
+        # Concatenate input streams
+        X = torch.cat([X1, X2], 1)
+
+        # V stream
+        V = F.relu(self.V_dense(X))
+        V = self.V(V)
+
+        # A stream
+        A = F.relu(self.A_dense(X))
+        A = self.A(A)
+
+        return V, A
     
+    def save_checkpoint(self):
+        print("... saving checkpoint ...")
+        torch.save(self.state_dict(), self.checkpoint_file)
+
     
+
 
 class DRL_algorithm:
 
@@ -99,11 +157,8 @@ class DRL_algorithm:
         # Epsilon greedy exploration parameters
         self.epsilon = 1.0
         self.epsilon_final = 0.01          
-
         self.epsilon_interval = self.epsilon - self.epsilon_final
-        self.epsilon_greedy_frames = 500_000
-
-
+        self.epsilon_greedy_frames = 750_000
 
         self.memory = memory
         self.replay_exp_initial_condition = replay_exp_initial_condition        
@@ -119,25 +174,18 @@ class DRL_algorithm:
         self.p_action = 0
         self.same_action_counter = 0
 
-        ####### MODELS
-        self.loss_function = tf.keras.losses.Huber()
-        #self.loss_function = nn.HuberLoss()
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
+        ####### MODELS        
         # Q network
-        self.q_net = duelingDQN(self.action_dim)
-        #self.q_net = dqn_network(4, self.action_dim)        
-        self.q_net.compile(optimizer=self.optimizer, loss=self.loss_function)
-        #visualkeras.layered_view(self.q_net, legend=True, to_file='model.png') # write to disk   
+        self.q_net = duelingDQN(self.action_dim,
+                                chkpt_dir='./records/networks',
+                                name='duelingDQN')          
         # Q target network
-        self.q_target_net = duelingDQN(self.action_dim)
-        self.q_target_net.compile(optimizer=self.optimizer, loss=self.loss_function)
-        # Copy weights
-        self.q_target_net.set_weights(self.q_net.get_weights())        
+        self.q_target_net = duelingDQN(self.action_dim,
+                                       chkpt_dir='./records/networks',
+                                       name='target_duelingDQN')              
         # Learning rate decay
-        
-        self.episodes = 1
+        self.q_target_net.load_state_dict(self.q_net.state_dict())
 
-    
     def policy(self, state, lidar_state):
         if (np.random.uniform(0.0,1.0) < self.epsilon) or (self.memory.experience_ind <= self.replay_exp_initial_condition): 
             # If the random number is less than epsilon
@@ -150,27 +198,26 @@ class DRL_algorithm:
                                             
             return action
         else:
-            # Preprocessing state images
-            #state = np.empty((state_list[0].shape[0], state_list[0].shape[1]))
-            #for i, image in enumerate(state_list):   
+            # Preprocessing state images                        
             img_state = Image.fromarray(state).convert('L') 
             img_state = img_state.rotate(-90)   
             img_state = img_state.transpose(Image.FLIP_LEFT_RIGHT)          
-                #image_temp = np.array(image_temp) / 255.0
+            img_state = img_state.resize((84, 84))                
             img_state = np.array(img_state) / 255.0            
 
-            # Expand dimensions 
-            img_state = np.expand_dims(img_state, axis = 0)
+            # Expand dimensions             
+            img_state_tensor = torch.tensor(img_state).to(self.q_net.device)
             # Lidar state
             lidar_states = np.empty((1,4), dtype=int)
             
             lidar_states = np.reshape(lidar_states, (1, len(lidar_state)))            
-                
-            # Prediction
-            A = self.q_net.advantage([img_state, lidar_states])                        
+            lidar_state_tensor = torch.tensor(lidar_states).to(self.q_net.device)    
+            # Prediction            
+            V, A = self.q_net.forward([img_state_tensor, lidar_state_tensor])                        
             
-            action = tf.math.argmax(A, axis=1).numpy()[0]
-                # Counter of repeated action in the previous step
+            A_mean = torch.mean(A)       
+            action = torch.argmax((V + (A - A_mean))).item()            
+            
             if self.p_action == action:
                 self.same_action_counter += 1
             self.p_action = action
@@ -185,103 +232,62 @@ class DRL_algorithm:
         if self.memory.experience_ind <= self.replay_exp_initial_condition:
             self.training_finished = True
             return            
-        # Sampling minibatch        
-        #minibatch_weights, minibatch_tree_idx, states_batch, lidar_c_states, rewards_batch, minibatch_actions, next_states_batch, lidar_n_states, dones_batch = self.memory.sample(self.batch_size)
+        # Sampling minibatch                
         states_batch, lidar_c_states, rewards_batch, minibatch_actions, next_states_batch, lidar_n_states, dones_batch = \
             self.memory.sample(self.batch_size)
-        # Prediction with Q network     
-                
-           
-        q_preds = self.q_net([states_batch, lidar_c_states])        
-         
         
-        # Select the actions in each next states of the samples
-        q_eval = self.q_net([next_states_batch, lidar_n_states])
-        next_max_actions = np.argmax(q_eval, axis=1)
-        # Predictions with Q target network
-        q_next_preds = self.q_target_net([next_states_batch, lidar_n_states])        
+        states = torch.tensor(states_batch).to(self.q_net.device)
+        lidar_current_states = torch.tensor(lidar_c_states).to(self.q_net.device)
+        next_states = torch.tensor(next_states_batch).to(self.q_net.device)
+        lidar_next_states = torch.tensor(lidar_n_states).to(self.q_net.device)
+        rewards = torch.tensor(rewards_batch).to(self.q_net.device)
+        actions = torch.tensor(minibatch_actions).to(self.q_net.device)
+        dones = torch.tensor(dones_batch).to(self.q_net.device)
         
-        # Create variables for the next steps
-        q_target = q_preds.numpy()             
-                    
-        
-        # Double DQN algorithm
-        for idx in range(dones_batch.shape[0]):
-            q_target_value = rewards_batch[idx]                     
-            if not dones_batch[idx]:                        
-                # If not done episode -> evaluate actions predicted
-                q_action_evaluated = q_next_preds[idx][next_max_actions[idx]]
-                # Bellman equation variation for Double DQN algorithm                                                
-                q_target_value += self.discount*q_action_evaluated               
-            # Final Q from Bellman Equation
-            q_target[idx][minibatch_actions[idx]] = q_target_value
-            # Compute errors between q_preds and 
-            
-        
-        print("Training... ")        
-        # Training network
-         # Create a mask so we only calculate loss on the updated Q-values        
-        
-        #metrics = self.q_net.train_on_batch(x= [states_batch, lidar_c_states], y= q_target, sample_weight=minibatch_weights, return_dict=True)
-        metrics = self.q_net.train_on_batch(x= [states_batch, lidar_c_states], y= q_target, return_dict=True)
-        # Update priorities
-        
-        
-        self.mean_loss = np.mean(metrics['loss'])
-        
+        self.q_net.optimizer.zero_grad()
 
+        indices = np.arange(self.batch_size)
         
+        V_s, A_s = self.q_net.forward([states, lidar_current_states]) 
+        V_s_target, A_s_target = self.q_target_net.forward([next_states, lidar_next_states])
+        V_s_eval, A_s_eval = self.q_net.forward([next_states, lidar_next_states])
+        
+        q_pred = torch.add(V_s, (A_s - A_s.mean(dim=1, keepdim=True)))[indices, actions]
+        q_next = torch.add(V_s_target, (A_s_target - A_s_target.mean(dim=1, keepdim=True)))                           
+        q_eval = torch.add(V_s_eval, (A_s_eval - A_s_eval.mean(dim=1, keepdim=True)))   
+
+        max_actions = torch.argmax(q_eval, dim=1)            
+        
+        q_next[dones] = 0.0
+        q_target = rewards + self.discount * q_next[indices, max_actions]
+
+        loss = self.q_net.loss(q_target.double(), q_pred.double()).to(self.q_net.device)    
+        loss.backward()
+        self.q_net.optimizer.step()        
+        print("Training... ")        
+        # Training network       
         # Update epsilon
          # Decay probability of taking random action
         self.epsilon -= self.epsilon_interval / self.epsilon_greedy_frames
         self.epsilon = max(self.epsilon, self.epsilon_final)
-        #self.epsilon = self.epsilon - self.epsilon_decay if self.epsilon > self.epsilon_final else self.epsilon_final
-        # Polyak's Average
-        #self.soft_update()
-        self.update_network_counter += 1
-        self.episodes += 1
+        
+        self.update_network_counter += 1        
 
-        if self.update_network_counter == 200:
+        if self.update_network_counter == 10000:
             # Copy weights
-            self.q_target_net.set_weights(self.q_net.get_weights())
+            self.q_target_net.load_state_dict(self.q_net.state_dict())
             self.update_network_counter = 1
 
         self.training_finished = True
         print("Training Finished")
 
-
-
-    def soft_update(self):
-        # Update the target model slowly
-        new_weights = [self.tau * current + (1 - self.tau) * target for current, target in zip(self.q_net.get_weights(), self.q_target_net.get_weights())]
-        self.q_target_net.set_weights(new_weights)
-
-    def save_results(self, root_path, f):
-        self.q_net.save_weights(root_path+'/{0}.h5'.format(f))   
-        
-
-    def load_net(self, f):
-        model_path = './records/networks/'           
-        # One call
-        batch = np.random.choice(33, 32, replace=False)
-        
-        minibatch_lidar_c_state = np.empty((32, 4))
-        minibatch_current_state = np.empty((32, 200, 200))
-
-        for i, data_index in enumerate(batch):
-            ### Get data
-            # Getting current state            
-            minibatch_current_state[i, :, :] = np.array(Image.open(f"./dataset/{data_index}/current_state/c_s.png")) / 255.0                                
-            lidar_current_state = np.array(pd.read_csv(f"./dataset/{data_index}/current_state/lidar.csv", header=0))
-            minibatch_lidar_c_state[i, :] = lidar_current_state
-            # Getting next state          
-            
-        ### Activate layers inputs
-        q_preds = self.q_net([minibatch_current_state, minibatch_lidar_c_state])
-        q_next_preds = self.q_target_net([minibatch_current_state, minibatch_lidar_c_state])        
-        
-        self.q_net.load_weights(model_path+f'{f}.h5')        
-        # Copy weights
-        self.q_target_net.set_weights(self.q_net.get_weights())
-        print("Network loaded!!!!!!!!!")      
-        return
+    def save_models(self):
+        self.q_net.save_checkpoint()
+        self.q_target_net.save_checkpoint()
+        print("Models saved")
+    
+    def load_models(self):        
+        self.q_net.load_state_dict(torch.load("model/lunar_lander_model"))          
+        self.q_target_net.load_state_dict(torch.load("model/lunar_lander_target_model"))          
+        self.q_target_net.load_state_dict(self.q_net.state_dict())  
+        print("Models loaded")
