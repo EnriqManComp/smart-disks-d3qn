@@ -30,25 +30,25 @@ class Pursuiter:
                     self.position[1] += 2.0                                      
         '''
         if action == 'UP':
-            if self.position[1] < 15:
-                self.position[1] = 15                        
+            if self.position[1] < 18:
+                self.position[1] = 18                        
             else:
-                self.position[1] -= 1                    
+                self.position[1] -= 2
         elif action == "DOWN":
-            if self.position[1] > 185:
-                self.position[1] = 185
+            if self.position[1] > 188:
+                self.position[1] = 188
             else:
-                self.position[1] += 1
+                self.position[1] += 2
         elif action == "RIGHT":
-            if self.position[0] > 185:
-                self.position[0] = 185
+            if self.position[0] > 188:
+                self.position[0] = 188
             else:
-                self.position[0] += 1
+                self.position[0] += 2
         elif action == "LEFT":
-            if self.position[0] < 15:
-                self.position[0] = 15
+            if self.position[0] < 18:
+                self.position[0] = 18
             else:
-                self.position[0] -= 1
+                self.position[0] -= 2
         else:
             pass
         

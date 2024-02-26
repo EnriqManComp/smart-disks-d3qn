@@ -9,89 +9,11 @@ import os
 
 
 ######## NETWORK ARCHITECTURE
-'''
-class duelingDQN(tf.keras.Model):
-    def __init__(self,action_dim):
-        super(duelingDQN, self).__init__()
-        # 1st Input stream        
-        self.conv1 = tf.keras.layers.Conv2D(filters=32,kernel_size=(8,8),strides=4, activation='relu')
-        self.conv2 = tf.keras.layers.Conv2D(filters=64,kernel_size=(4,4),strides=2, activation='relu')
-        self.conv3 = tf.keras.layers.Conv2D(filters=64,kernel_size=(3,3),strides=1, activation='relu')
-        self.flatten = tf.keras.layers.Flatten()
-
-        # 2nd Input stream
-        self.dense1 = tf.keras.layers.Dense(units=64, activation='relu')  
-        self.dropout = tf.keras.layers.Dropout(0.2)  
-        self.dense2 = tf.keras.layers.Dense(units=64, activation='relu')
-        
-        # Concatenate layer
-        self.concat = tf.keras.layers.Concatenate(axis=1)
-
-        # V stream
-        self.V_dense = tf.keras.layers.Dense(units=256, activation='relu')        
-        self.V = tf.keras.layers.Dense(1, activation=None)
-
-        # A stream        
-        self.A_dense = tf.keras.layers.Dense(units=256, activation='relu')
-        self.A = tf.keras.layers.Dense(action_dim, activation=None)
-        
-    def call(self, state):        
-        # First input        
-        X1 = self.conv1(tf.expand_dims(state[0], axis=-1))
-        X1 = self.conv2(X1)
-        X1 = self.conv3(X1)
-        X1 = self.flatten(X1)
-
-        # Second input
-        #X2 = self.dense1(state[1])        
-        X2 = self.dense1(state[1])
-        X2 = self.dropout(X2)
-        X2 = self.dense2(X2)        
-        # Concatenate input streams
-        X = self.concat([X1, X2])        
-
-        # V stream
-        V = self.V_dense(X)
-        V = self.V(V)
-
-        # A stream
-        A = self.A_dense(X)
-        A = self.A(A)
-
-        # Compute Q value
-        Q = (V - ( A - tf.math.reduce_mean(A, axis=1, keepdims=True)))
-
-        return Q
-
-    def advantage(self, state):
-        # First input        
-        X1 = self.conv1(tf.expand_dims(state[0], axis=-1))
-        X1 = self.conv2(X1)
-        X1 = self.conv3(X1)
-        X1 = self.flatten(X1)
-
-        # Second input
-        #X2 = self.dense1(state[1])
-        X2 = self.dense1(state[1])
-        X2 = self.dropout(X2)
-        X2 = self.dense2(X2)
-
-        # Concatenate input streams
-        
-        X = self.concat([X1, X2])
-
-        # A stream
-        A = self.A_dense(X)
-        A = self.A(A)
-
-        return A 
-''' 
 class duelingDQN(nn.Module):
-    def __init__(self, action_dim, chkpt_dir, name):
+    def __init__(self, action_dim, name):
         super(duelingDQN, self).__init__()
-        
-        self.chkpt_dir = chkpt_dir
-        self.checkpoint_file = os.path.join(self.chkpt_dir, name)
+
+        self.name = name       
 
         # 1st Input stream 
         self.conv1 = nn.Conv2d(1, 32, kernel_size=8, stride=4)
@@ -140,8 +62,10 @@ class duelingDQN(nn.Module):
 
         return V, A
     
-    def save_checkpoint(self):
+    def save_checkpoint(self, f):
         print("... saving checkpoint ...")
+        self.chkpt_dir = f"./records/networks/{f}/"
+        self.checkpoint_file = os.path.join(self.chkpt_dir, self.name)
         torch.save(self.state_dict(), self.checkpoint_file)
 
     
@@ -168,20 +92,17 @@ class DRL_algorithm:
         # Number of action of the agent
         self.action_dim = 5
         
-        self.discount = 0.99
-        self.mean_loss = 0
+        self.discount = 0.99        
         
         self.p_action = 0
         self.same_action_counter = 0
 
         ####### MODELS        
         # Q network
-        self.q_net = duelingDQN(self.action_dim,
-                                chkpt_dir='./records/networks',
+        self.q_net = duelingDQN(self.action_dim,                                
                                 name='duelingDQN')          
         # Q target network
-        self.q_target_net = duelingDQN(self.action_dim,
-                                       chkpt_dir='./records/networks',
+        self.q_target_net = duelingDQN(self.action_dim,                                       
                                        name='target_duelingDQN')              
         # Learning rate decay
         self.q_target_net.load_state_dict(self.q_net.state_dict())
@@ -273,7 +194,7 @@ class DRL_algorithm:
         
         self.update_network_counter += 1        
 
-        if self.update_network_counter == 10000:
+        if self.update_network_counter == 8000:
             # Copy weights
             self.q_target_net.load_state_dict(self.q_net.state_dict())
             self.update_network_counter = 1
@@ -281,9 +202,9 @@ class DRL_algorithm:
         self.training_finished = True
         print("Training Finished")
 
-    def save_models(self):
-        self.q_net.save_checkpoint()
-        self.q_target_net.save_checkpoint()
+    def save_model(self, f):        
+        self.q_net.save_checkpoint(f)
+        self.q_target_net.save_checkpoint(f)
         print("Models saved")
     
     def load_models(self):        
