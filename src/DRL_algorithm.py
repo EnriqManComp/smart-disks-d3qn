@@ -16,7 +16,7 @@ class duelingDQN(nn.Module):
         self.name = name       
 
         # 1st Input stream 
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=8, stride=4)
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
         
@@ -25,32 +25,37 @@ class duelingDQN(nn.Module):
         self.dense2 = nn.Linear(64, 64)
 
         # V stream
-        self.V_dense = nn.Linear(256, 256)
+        self.V_dense = nn.Linear(3200, 256)
         self.V = nn.Linear(256, 1)
 
         # A stream
-        self.A_dense = nn.Linear(256, 256)
+        self.A_dense = nn.Linear(3200, 256)
         self.A = nn.Linear(256, action_dim)
 
         self.optimizer = torch.optim.RMSprop(self.parameters(), lr=0.00025)
-        self.loss = nn.MSELoss(reduction='none')
+        self.loss = nn.MSELoss(reduction='mean')
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.to(self.device)
 
     def forward(self, state):
-        # First input
+        # First input          
         X1 = F.relu(self.conv1(state[0]))
         X1 = F.relu(self.conv2(X1))
         X1 = F.relu(self.conv3(X1))
-        X1 = torch.flatten(X1)
+        
+        X1 = X1.view(X1.size(0), -1)
+        
 
         # Second input
+        
         X2 = F.relu(self.dense1(state[1]))
-        X2 = F.relu(self.dense2(X2))
-
+        X2 = F.relu(self.dense2(X2))        
+        
+        X2 = X2.view(X2.size(0), -1)
+        
         # Concatenate input streams
-        X = torch.cat([X1, X2], 1)
+        X = torch.cat([X1, X2], dim=1)
 
         # V stream
         V = F.relu(self.V_dense(X))
@@ -64,6 +69,7 @@ class duelingDQN(nn.Module):
     
     def save_checkpoint(self, f):
         print("... saving checkpoint ...")
+        os.makedirs(f'./records/networks/{f}', exist_ok=True)
         self.chkpt_dir = f"./records/networks/{f}/"
         self.checkpoint_file = os.path.join(self.chkpt_dir, self.name)
         torch.save(self.state_dict(), self.checkpoint_file)
@@ -125,16 +131,20 @@ class DRL_algorithm:
             img_state = img_state.transpose(Image.FLIP_LEFT_RIGHT)          
             img_state = img_state.resize((84, 84))                
             img_state = np.array(img_state) / 255.0            
+            
 
             # Expand dimensions             
             img_state_tensor = torch.tensor(img_state).to(self.q_net.device)
+            img_state_tensor = img_state_tensor.unsqueeze(0)
+            img_state_tensor = img_state_tensor.unsqueeze(0)
             # Lidar state
-            lidar_states = np.empty((1,4), dtype=int)
+            lidar_state = np.array(lidar_state) / 200.0
             
-            lidar_states = np.reshape(lidar_states, (1, len(lidar_state)))            
-            lidar_state_tensor = torch.tensor(lidar_states).to(self.q_net.device)    
+            lidar_state_tensor = torch.tensor(lidar_state).to(self.q_net.device)    
+            lidar_state_tensor = lidar_state_tensor.unsqueeze(0)
             # Prediction            
-            V, A = self.q_net.forward([img_state_tensor, lidar_state_tensor])                        
+            
+            V, A = self.q_net.forward([img_state_tensor.float(), lidar_state_tensor.float()])                        
             
             A_mean = torch.mean(A)       
             action = torch.argmax((V + (A - A_mean))).item()            
@@ -158,8 +168,10 @@ class DRL_algorithm:
             self.memory.sample(self.batch_size)
         
         states = torch.tensor(states_batch).to(self.q_net.device)
+        states = states.unsqueeze(1)
         lidar_current_states = torch.tensor(lidar_c_states).to(self.q_net.device)
         next_states = torch.tensor(next_states_batch).to(self.q_net.device)
+        next_states = next_states.unsqueeze(1)
         lidar_next_states = torch.tensor(lidar_n_states).to(self.q_net.device)
         rewards = torch.tensor(rewards_batch).to(self.q_net.device)
         actions = torch.tensor(minibatch_actions).to(self.q_net.device)
@@ -169,19 +181,24 @@ class DRL_algorithm:
 
         indices = np.arange(self.batch_size)
         
-        V_s, A_s = self.q_net.forward([states, lidar_current_states]) 
-        V_s_target, A_s_target = self.q_target_net.forward([next_states, lidar_next_states])
-        V_s_eval, A_s_eval = self.q_net.forward([next_states, lidar_next_states])
+        V_s, A_s = self.q_net.forward([states.float(), lidar_current_states.float()]) 
+        V_s_target, A_s_target = self.q_target_net.forward([next_states.float(), lidar_next_states.float()])
+        V_s_eval, A_s_eval = self.q_net.forward([next_states.float(), lidar_next_states.float()])
         
         q_pred = torch.add(V_s, (A_s - A_s.mean(dim=1, keepdim=True)))[indices, actions]
         q_next = torch.add(V_s_target, (A_s_target - A_s_target.mean(dim=1, keepdim=True)))                           
         q_eval = torch.add(V_s_eval, (A_s_eval - A_s_eval.mean(dim=1, keepdim=True)))   
 
-        max_actions = torch.argmax(q_eval, dim=1)            
+        max_actions = torch.argmax(q_eval, dim=1) 
         
-        q_next[dones] = 0.0
-        q_target = rewards + self.discount * q_next[indices, max_actions]
-
+        
+        dones_expanded = dones.expand_as(q_next)
+        
+        q_next[dones_expanded] = 0.0
+        
+               
+        
+        q_target = torch.add(rewards.squeeze(), self.discount * q_next[indices, max_actions])        
         loss = self.q_net.loss(q_target.double(), q_pred.double()).to(self.q_net.device)    
         loss.backward()
         self.q_net.optimizer.step()        
@@ -207,8 +224,8 @@ class DRL_algorithm:
         self.q_target_net.save_checkpoint(f)
         print("Models saved")
     
-    def load_models(self):        
-        self.q_net.load_state_dict(torch.load("model/lunar_lander_model"))          
-        self.q_target_net.load_state_dict(torch.load("model/lunar_lander_target_model"))          
+    def load_models(self, f):        
+        self.q_net.load_state_dict(torch.load(f"./records/networks/{f}/duelingDQN"))          
+        self.q_target_net.load_state_dict(torch.load(f"./records/networks/{f}/target_duelingDQN"))          
         self.q_target_net.load_state_dict(self.q_net.state_dict())  
         print("Models loaded")

@@ -106,6 +106,7 @@ class Environment:
         self.save_exp_trigger = False
         self.training_trigger = False
 
+        self.run_time = 1
 
     def run(self):              
         """
@@ -119,7 +120,9 @@ class Environment:
         save_net_indicator = 1        
         
         load = False
-        if load:                                   
+        if load:
+            self.drl_algorithm.load_models(1)
+            return
             self.drl_algorithm.epsilon = 0.6473956600076547           
             self.memory.experience_ind = 344000            
             self.memory.storage = 344000
@@ -133,7 +136,7 @@ class Environment:
             reward = 0
             
             scores = 0.0
-            run_time = 1           
+            self.run_time = 1           
 
             ##### TRIGGERS
             # 1st step
@@ -178,9 +181,9 @@ class Environment:
             
                            
             print("######################################################EPISODE: ", epis)
-            while (run_time <= 600) and (not self.done):
+            while (self.run_time <= 452) and (not self.done):
                 # Run the game algorithm
-                print("Run time: ", run_time)
+                
                 for event in pygame.event.get():
                     # Exit event
                     if event.type == pygame.QUIT:
@@ -197,13 +200,13 @@ class Environment:
                     if (self.done) or (scores == 1000):
                         break
                     # Increase run time 
-                    run_time += 1      
+                    
                     # Set the dimensions of the states          
                     self.current_state = np.empty((200,200,3))
                     self.next_state = np.empty((200,200,3))        
                      
                     gc.collect()
-                    time.sleep(1)                  
+                    time.sleep(0.05)                  
                     # Restart the trigger cycle
                     self.drl_algorithm.training_finished = False
                     self.restart_params_trigger = False                
@@ -214,8 +217,10 @@ class Environment:
                 if self.start_new_cycle_trigger:
                     for _ in range(4):                
                         # Get current state
+                              
+                        print("Run time: ", self.run_time)
                         self.current_state = self.get_capture()                    
-                        
+
                         ###### EXECUTE THE ACTION 
                         # Get lidar observation
                         lidar_current_state = self.utils.lidar_observations(self.pursuiter.position[0], self.pursuiter.position[1], self.evasor)
@@ -242,7 +247,7 @@ class Environment:
                         self.evasor.spawn(self.screen)                                                           
                         
                         ####### END DRAW ZONE
-                    
+
                         ###########  CAPTURE NEXT STATE 
                         self.next_state = self.get_capture()
                         # Get lidar next state observations
@@ -260,17 +265,19 @@ class Environment:
                         
                         # Activate and deactivate step triggers
                         self.save_exp_trigger = True                   
-                    
+
                     ########## SAVE EXPERIENCE 
                     
-                    if self.save_exp_trigger:      
-                        # Add experience in memory                   
-                        experience = [self.current_state.copy(), lidar_current_state, action, reward, self.next_state.copy(), lidar_next_state, self.done]
-                        self.memory.add(experience)          
-                        
-                        # Next step (TRAINING NETWORK)                                               
-                        self.save_exp_trigger = False                         
-                    
+                        if self.save_exp_trigger:      
+                            # Add experience in memory                   
+                            experience = [self.current_state.copy(), lidar_current_state, action, reward, self.next_state.copy(), lidar_next_state, self.done]
+                            self.memory.add(experience)          
+                            
+                            # Next step (TRAINING NETWORK)                                               
+                            self.save_exp_trigger = False                         
+                            self.run_time += 1
+                            pygame.display.update()
+
                     print("Training step")
                     self.start_new_cycle_trigger = False
                     self.training_trigger = True                                                
@@ -299,7 +306,7 @@ class Environment:
                     self.drl_algorithm.save_model(save_net_indicator)
                     # Save network records
                     with open("./records/save_network.txt", 'a') as file:
-                        file.write("Save: {0}, Episode: {1}/{2}, Score: {3}, Epsilon: {4}, Play_time: {5}, Spawn distance: {6}\n".format(save_net_indicator, epis, self.EPISODES, scores, self.drl_algorithm.epsilon, run_time, self.utils.spawn_eucl_dist))
+                        file.write("Save: {0}, Episode: {1}/{2}, Score: {3}, Epsilon: {4}, Play_time: {5}, Spawn distance: {6}\n".format(save_net_indicator, epis, self.EPISODES, scores, self.drl_algorithm.epsilon, self.run_time, self.utils.spawn_eucl_dist))
                     save_net_indicator += 1
             # Save records and model each 100 episodes.
             if epis % 100 == 0:        
@@ -317,7 +324,7 @@ class Environment:
             if epis % 500 == 0:
                 # Save model record
                 with open("./records/save_network.txt", 'a') as file:
-                    file.write("Save: {0}, Episode: {1}/{2}, Score: {3}, Epsilon: {4}, Play_time: {5}, Spawn distance: {6}\n".format(save_net_indicator, epis, self.EPISODES, scores, self.drl_algorithm.epsilon, run_time, self.utils.spawn_eucl_dist))
+                    file.write("Save: {0}, Episode: {1}/{2}, Score: {3}, Epsilon: {4}, Play_time: {5}, Spawn distance: {6}\n".format(save_net_indicator, epis, self.EPISODES, scores, self.drl_algorithm.epsilon, self.run_time, self.utils.spawn_eucl_dist))
                 # Save the weights of the model
                 self.drl_algorithm.save_model(save_net_indicator)
                 # Increase the save model counter

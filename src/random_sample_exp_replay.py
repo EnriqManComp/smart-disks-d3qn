@@ -42,7 +42,7 @@ class ReplayBuffer:
         current_cap = current_cap.resize((84,84))                     
         current_cap.save(f"./dataset/{self.experience_ind}/current_state/c_s.png")          
         
-        lidar_current_state = pd.DataFrame(np.array(experience[1]).reshape(1, len(experience[1])))        
+        lidar_current_state = pd.DataFrame(np.array(experience[1]).reshape(1, len(experience[1])) / 200.0)        
         lidar_current_state.to_csv((f"./dataset/{self.experience_ind}/current_state/lidar.csv"), index=False, mode='w')
 
         # Save next state images
@@ -53,7 +53,7 @@ class ReplayBuffer:
         next_cap = next_cap.resize((84,84))
         next_cap.save(f"./dataset/{self.experience_ind}/next_state/n_s.png")
 
-        lidar_next_state = pd.DataFrame(np.array(experience[5]).reshape(1, len(experience[5])))
+        lidar_next_state = pd.DataFrame(np.array(experience[5]).reshape(1, len(experience[5])) / 200.0)
         lidar_next_state.to_csv((f"./dataset/{self.experience_ind}/next_state/lidar.csv"), index=False, mode="w")
 
         # Save action, reward, done
@@ -71,6 +71,7 @@ class ReplayBuffer:
             self.storage = self.max_size
 
         print("EXP ADDED")  
+        return
 
     def sample(self, batch_size):
         # Selecting the experience in memory
@@ -78,8 +79,8 @@ class ReplayBuffer:
         minibatch_rewards = []
         minibatch_dones = []
         minibatch_actions = []
-        minibatch_lidar_c_state, minibatch_lidar_n_state = np.empty((batch_size, 4)), np.empty((batch_size, 4))
-        minibatch_current_state, minibatch_next_state = np.empty((batch_size, self.screen.get_width(), self.screen.get_height())), np.empty((batch_size, self.screen.get_width(), self.screen.get_height()))
+        minibatch_lidar_c_state, minibatch_lidar_n_state = np.empty((batch_size, 4), dtype=float), np.empty((batch_size, 4), dtype=float)
+        minibatch_current_state, minibatch_next_state = np.empty((batch_size, 84, 84), dtype=float), np.empty((batch_size, 84, 84), dtype=float)
 
         for i, data_index in enumerate(batch):
             ### Get data
