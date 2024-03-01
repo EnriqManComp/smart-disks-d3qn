@@ -114,7 +114,7 @@ class DRL_algorithm:
         self.q_target_net.load_state_dict(self.q_net.state_dict())
 
     def policy(self, state, lidar_state):
-        if (np.random.uniform(0.0,1.0) < self.epsilon) or (self.memory.experience_ind <= self.replay_exp_initial_condition): 
+        if (np.random.uniform(0.0,1.0) < self.epsilon) or (self.memory.storage <= self.replay_exp_initial_condition): 
             # If the random number is less than epsilon
             # Choose a random action
             action = int(np.random.choice(5,1))
@@ -160,7 +160,7 @@ class DRL_algorithm:
         
     def train(self):
         # Start training condition
-        if self.memory.experience_ind <= self.replay_exp_initial_condition:
+        if self.memory.storage <= self.replay_exp_initial_condition:
             self.training_finished = True
             return            
         # Sampling minibatch                
@@ -228,4 +228,4 @@ class DRL_algorithm:
         self.q_net.load_state_dict(torch.load(f"./records/networks/{f}/duelingDQN"))          
         self.q_target_net.load_state_dict(torch.load(f"./records/networks/{f}/target_duelingDQN"))          
         self.q_target_net.load_state_dict(self.q_net.state_dict())  
-        print("Models loaded")
+        print("Models loaded!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")

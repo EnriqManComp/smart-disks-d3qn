@@ -7,6 +7,13 @@ class Utils:
         self.obstacles = obstacles
         self.lidar = sensors
         self.spawn_eucl_dist = 0.0
+        self.REWARDS = {
+            "COLLISION": -1000,            
+            "GOAL": +1000            
+        } 
+
+    def eucl_distance(self, x1, y1, x2, y2):
+        return np.sqrt(np.power((x2-x1), 2) + np.power((y2-y1), 2))
 
     def random_spawn(self, evasor_pos=None, screen= None, evasor=None, evasor_spawn=False):
         ##### Random coordinates
@@ -27,23 +34,23 @@ class Utils:
             
             # If the spawn overlap the evasor area reset the spawn
             reference_pursuiter = pygame.draw.circle(screen, (0,0,255), (x, y), 8)
-
-            dist = np.sqrt( np.power((evasor_pos[0] - x), 2) +  np.power((evasor_pos[1] - y), 2))
+            
+            dist = self.eucl_distance(x, y, evasor_pos[0], evasor_pos[1])
 
             while reference_pursuiter.colliderect(evasor.robot) or (dist <= 38):
                 # New x and y
                 x = np.random.randint(low= 20, high=180)
                 y = np.random.randint(low= 20, high=180)
                 reference_pursuiter = pygame.draw.circle(screen, (0,0,255), (x, y), 8)                
-                dist = np.sqrt( np.power((evasor_pos[0] - x), 2) +  np.power((evasor_pos[1] - y), 2))
+                dist = self.eucl_distance(x, y, evasor_pos[0], evasor_pos[1])
             
-            self.spawn_eucl_dist = np.sqrt( np.power((evasor_pos[0] - x), 2) +  np.power((evasor_pos[1] - y), 2) )
+            self.spawn_eucl_dist = self.eucl_distance(x, y, evasor_pos[0], evasor_pos[1])
             
         return x, y
     
     def collision(self, pursuiter_rect, evasor_rect, pursuiter_pos, evasor_pos):
-        # Collision with the limit walls of the world
-        eucl_dist = np.sqrt( np.power((evasor_pos[0] - pursuiter_pos[0]), 2) +  np.power((evasor_pos[1] - pursuiter_pos[1]), 2) )        
+        # Collision with the limit walls of the world        
+        eucl_dist = self.eucl_distance(pursuiter_pos[0], pursuiter_pos[1], evasor_pos[0], evasor_pos[1])
 
         if pursuiter_rect.colliderect(self.obstacles.left_wall):                        
             return "COLLISION"    
@@ -53,10 +60,7 @@ class Utils:
             return "COLLISION"
         elif pursuiter_rect.colliderect(self.obstacles.bottom_wall):
             return "COLLISION"
-        elif eucl_dist <= 38.0:        
-            
-            if pursuiter_rect.colliderect(evasor_rect):
-                return "GOAL-COLLISION-EVASOR"   
+        elif eucl_dist <= 38.0:          
             return "GOAL"     
         else:
             return "LIVING PENALTY"

@@ -66,19 +66,10 @@ class Environment:
             1: "UP",
             2: "DOWN",
             3: "LEFT",
-            4: "RIGHT",
-            5: "DOUBLE-UP",
-            6: "DOUBLE-DOWN",
-            7: "DOUBLE-LEFT",
-            8: "DOUBLE-RIGHT" 
+            4: "RIGHT"             
         }
-        # Possible rewards
-        self.REWARDS = {
-            "COLLISION": -100,
-            "LIVING PENALTY": -1.0,
-            "GOAL": +100,
-            "GOAL-COLLISION-EVASOR": -25.0
-        }       
+        
+              
 
         ###### MEMORY
         # Initial number of experience in storage to start the training
@@ -119,17 +110,15 @@ class Environment:
 
         save_net_indicator = 1        
         
-        load = False
+        load = True
         if load:
-            self.drl_algorithm.load_models(1)
-            return
-            self.drl_algorithm.epsilon = 0.6473956600076547           
-            self.memory.experience_ind = 344000            
-            self.memory.storage = 344000
-            self.drl_algorithm.load_net(293)
-            save_net_indicator = 294
+            self.drl_algorithm.load_models(194)            
+            self.drl_algorithm.epsilon = 0.8619372400029972          
+            self.memory.experience_ind = 453268         
+            self.memory.storage = 453268            
+            save_net_indicator = 195
             
-        for epis in range(1, self.EPISODES+1):
+        for epis in range(1301, self.EPISODES+1):
             ##### Restart the initial parameters in each episode
             self.done = False           
             
@@ -350,7 +339,10 @@ class Environment:
         # Convert from Surface to Array
                
         # Return the capture
-        return pygame.surfarray.array3d(capture)    
+        return pygame.surfarray.array3d(capture)   
+
+    
+
 
 
 # Run the algorithm

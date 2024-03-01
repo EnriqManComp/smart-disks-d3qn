@@ -65,7 +65,7 @@ class ReplayBuffer:
         self.storage = self.experience_ind
         self.experience_ind += 1 
         if self.experience_ind >= self.max_size:
-            self.experience_ind=0    
+            self.experience_ind = 0    
             self.flag=True
         if self.flag:
             self.storage = self.max_size
