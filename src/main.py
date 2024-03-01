@@ -67,9 +67,7 @@ class Environment:
             2: "DOWN",
             3: "LEFT",
             4: "RIGHT"             
-        }
-        
-              
+        }             
 
         ###### MEMORY
         # Initial number of experience in storage to start the training
@@ -242,15 +240,10 @@ class Environment:
                         # Get lidar next state observations
                         lidar_next_state = self.utils.lidar_observations(self.pursuiter.position[0], self.pursuiter.position[1], self.evasor)                                
                         
-                        ######### CHECK COLLISIONS
+                        ######### GET REWARD
                                             
-                        pursuiter_collision_condition = self.utils.collision(self.pursuiter.robot, self.evasor.robot, self.pursuiter.position, self.evasor.position)
-                        print(pursuiter_collision_condition)
-                        if pursuiter_collision_condition == "COLLISION" or pursuiter_collision_condition == "GOAL-COLLISION-EVASOR":
-                            self.done = True           
+                        reward, self.done = self.utils.get_reward(self.pursuiter.robot, self.evasor.robot, self.pursuiter.position, self.evasor.position, lidar_next_state)
                         
-                        ######## GET REWARD
-                        reward = self.REWARDS[pursuiter_collision_condition]
                         
                         # Activate and deactivate step triggers
                         self.save_exp_trigger = True                   
@@ -341,16 +334,7 @@ class Environment:
         # Return the capture
         return pygame.surfarray.array3d(capture)   
 
-    
-
-
-
 # Run the algorithm
-# Avoid OOM errors by setting GPU Memory Consumption Growth
-gpus = tf.config.experimental.list_physical_devices('GPU')
-for gpu in gpus: 
-    tf.config.experimental.set_memory_growth(gpu, True)
-tf.config.list_physical_devices('GPU')
 train = True
 gc.enable()
 gc.collect()

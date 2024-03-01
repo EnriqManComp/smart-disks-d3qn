@@ -2,8 +2,7 @@ import pygame
 
 class Pursuiter:
 
-    def __init__(self):
-        
+    def __init__(self):        
         # x, y position
         self.position = []        
         ## GRAPHICS
@@ -11,24 +10,24 @@ class Pursuiter:
         self.robot = None    
     
     def spawn(self, surface):
-        self.robot = pygame.draw.circle(surface, self.color, (self.position[0], self.position[1]), 8)        
+        """
+        Spawn the pursuiter in the given surface
+        
+        Input:
+            surface: pygame.Surface object
+
+        """
+        self.robot = pygame.draw.circle(surface, self.color, (self.position[0], self.position[1]), 8) 
+        return       
     
-    def controls(self, action="NO ACTION"):
-        '''
-        if event is not None:
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RIGHT:                    
-                    self.position[0] += 2.0                   
-                    
-                if event.key == pygame.K_LEFT:
-                    self.position[0] -= 2.0
-                                        
-                if event.key == pygame.K_UP:
-                    self.position[1] -= 2.0                    
-                     
-                if event.key == pygame.K_DOWN:
-                    self.position[1] += 2.0                                      
-        '''
+    def controls(self, action="NO ACTION"):       
+        """
+        Controls the pursuiter movement
+        
+        Input:
+            action: str, action to take
+            
+        """
         if action == 'UP':
             if self.position[1] < 18:
                 self.position[1] = 18                        
@@ -51,6 +50,7 @@ class Pursuiter:
                 self.position[0] -= 2
         else:
             pass
+        return
         
         
         
