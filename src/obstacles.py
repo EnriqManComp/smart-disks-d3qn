@@ -21,6 +21,11 @@ class Obstacles:
         
 
     def render_walls(self):
+        """
+        
+        Render the walls of the world
+
+        """
         #### Limits of the world
         # Render left wall
         self.left_wall = pygame.draw.rect(self.screen, self.wall_color, self.left_wall_desc)

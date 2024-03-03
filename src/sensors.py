@@ -7,7 +7,7 @@ class Sensor:
         self.color = (255,0,0)
         # Bottom line
         self.bottom_line = None
-        self.end_pos_bottom_line = [0,410]
+        self.end_pos_bottom_line = [0,200]
         # Left line
         self.left_line = None
         self.end_pos_left_line = [0,0]
@@ -16,7 +16,7 @@ class Sensor:
         self.end_pos_upper_line = [0,0]
         # Right line
         self.right_line = None
-        self.end_pos_right_line = [405,0]
+        self.end_pos_right_line = [200,0]
 
     def update_position(self, position):
         self.position = position       
