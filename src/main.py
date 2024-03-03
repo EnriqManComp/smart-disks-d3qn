@@ -66,7 +66,12 @@ class Environment:
             1: "UP",
             2: "DOWN",
             3: "LEFT",
-            4: "RIGHT"             
+            4: "RIGHT",
+            5: "DOUBLE-UP",
+            6: "DOUBLE-DOWN",
+            7: "DOUBLE-LEFT",
+            8: "DOUBLE-RIGHT"
+                        
         }             
 
         ###### MEMORY
@@ -110,13 +115,14 @@ class Environment:
         
         load = True
         if load:
-            self.drl_algorithm.load_models(194)            
-            self.drl_algorithm.epsilon = 0.8619372400029972          
-            self.memory.experience_ind = 453268         
-            self.memory.storage = 453268            
-            save_net_indicator = 195
+            self.drl_algorithm.load_models(1320)            
+            self.drl_algorithm.epsilon = 0.5611008800095281         
+            self.memory.experience_ind = 615231         
+            self.memory.storage = 615231 
+            self.memory.flag = False           
+            save_net_indicator = 1321
             
-        for epis in range(1301, self.EPISODES+1):
+        for epis in range(1801, self.EPISODES+1):
             ##### Restart the initial parameters in each episode
             self.done = False           
             
@@ -184,7 +190,7 @@ class Environment:
                     scores += reward
                                                                
                     # Check end episode condition
-                    if (self.done) or (scores == 1000):
+                    if (self.done):
                         break
                     # Increase run time 
                     
@@ -202,7 +208,7 @@ class Environment:
                 ########### CAPTURE CURRENT STATE
                     
                 if self.start_new_cycle_trigger:
-                    for _ in range(4):                
+                    for _ in range(2):                
                         # Get current state
                               
                         print("Run time: ", self.run_time)
@@ -242,8 +248,9 @@ class Environment:
                         
                         ######### GET REWARD
                                             
-                        reward, self.done = self.utils.get_reward(self.pursuiter.robot, self.evasor.robot, self.pursuiter.position, self.evasor.position, lidar_next_state)
-                        
+                        reward, self.done = self.utils.get_reward(self.pursuiter.robot, self.evasor.robot, self.pursuiter.position, self.evasor.position)                        
+
+                        #print(reward)
                         
                         # Activate and deactivate step triggers
                         self.save_exp_trigger = True                   
@@ -257,8 +264,11 @@ class Environment:
                             
                             # Next step (TRAINING NETWORK)                                               
                             self.save_exp_trigger = False                         
-                            self.run_time += 1
+                            self.run_time += 1                            
                             pygame.display.update()
+                            if self.done:
+                                break
+
 
                     print("Training step")
                     self.start_new_cycle_trigger = False
@@ -334,10 +344,134 @@ class Environment:
         # Return the capture
         return pygame.surfarray.array3d(capture)   
 
+    def test(self):
+        # Loading the model
+        self.drl_algorithm.load_models(1320)            
+        self.drl_algorithm.epsilon = 0.0
+        scores = 0.0
+        for epis in range(20):
+            print("Scores: ", scores)
+            time.sleep(1)
+            self.done = False
+
+            reward = 0.0
+
+            scores = 0.0
+
+            self.run_time = 1
+
+            ##### TRIGGERS
+            # 1st step
+            self.restart_params_trigger = False
+            # 2nd step
+            self.start_new_cycle_trigger = True
+            # 3rd step            
+
+            # Spawn the agents and draw the environment
+            self.screen.fill((138,138,138))
+            self.obstacles.render_walls()
+
+            print("STARTING RESPAWN")
+
+            self.evasor.position = []
+            self.pursuiter.position = []
+            self.sensor.position = []
+            x, y = self.utils.random_spawn(evasor_spawn=True)
+            self.evasor.position.append(x)            
+            self.evasor.position.append(y)
+            self.evasor.spawn(self.screen)
+
+            x, y = self.utils.random_spawn(self.evasor.position, self.screen, self.evasor, evasor_spawn=False)
+            self.pursuiter.position.append(x)            
+            self.pursuiter.position.append(y)
+            self.pursuiter.spawn(self.screen)
+
+            self.sensor.position.append(self.pursuiter.position[0])
+            self.sensor.position.append(self.pursuiter.position[1])
+            
+            self.sensor.lidar(self.screen)
+            self.screen.fill((138,138,138))
+            self.obstacles.render_walls()
+            self.evasor.spawn(self.screen)
+            self.pursuiter.spawn(self.screen)         
+            # Update the screen
+            pygame.display.update() 
+
+            print("######################################################EPISODE: ", epis)
+
+            while (not self.done) and (self.run_time <= 500):
+                for event in pygame.event.get():
+                    # Exit event
+                    if event.type == pygame.QUIT:
+                        sys.exit()
+
+                
+                ### Save metrics
+                # Save score
+                scores += reward
+                                                               
+                # Check end episode condition
+                if (self.done):
+                    break
+                # Increase run time 
+                    
+                # Set the dimensions of the states          
+                self.current_state = np.empty((200,200,3))
+                self.next_state = np.empty((200,200,3))        
+                     
+                gc.collect()
+                time.sleep(0.05)                                     
+
+                
+                print("Run time: ", self.run_time)
+                self.current_state = self.get_capture()                    
+
+                    ###### EXECUTE THE ACTION 
+                    # Get lidar observation
+                lidar_current_state = self.utils.lidar_observations(self.pursuiter.position[0], self.pursuiter.position[1], self.evasor)
+                    # Select an action
+                action = self.drl_algorithm.policy(self.current_state, lidar_current_state)  
+                action = self.ACTIONS[action]                
+                print(action)               
+                    # Execute the action selected
+                self.pursuiter.controls(action= action)                               
+                    # Update the position of the lidar rectangles
+                self.sensor.update_position(self.pursuiter.position)
+
+                    ######## DRAW ZONE
+                    # Draw the window with the updates
+                    # Draw lidar
+                self.sensor.lidar(self.screen)
+                    # Draw background
+                self.screen.fill((138,138,138))
+                    # Draw obstacles                    
+                self.obstacles.render_walls()
+                    # Draw pursuiter
+                self.pursuiter.spawn(self.screen)                         
+                    # Draw evasor
+                self.evasor.spawn(self.screen)                                                           
+                        
+                    ####### END DRAW ZONE
+
+                    ###########  CAPTURE NEXT STATE 
+                self.next_state = self.get_capture()
+                    # Get lidar next state observations
+                lidar_next_state = self.utils.lidar_observations(self.pursuiter.position[0], self.pursuiter.position[1], self.evasor)                                
+                        
+                    ######### GET REWARD
+                                            
+                reward, self.done = self.utils.get_reward(self.pursuiter.robot, self.evasor.robot, self.pursuiter.position, self.evasor.position)                        
+                self.run_time += 1
+
+                pygame.display.update()
+
+
 # Run the algorithm
 train = True
 gc.enable()
 gc.collect()
 if train:
     Environment().run()
+else:
+    Environment().test()
 

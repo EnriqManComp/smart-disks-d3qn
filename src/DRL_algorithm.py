@@ -86,9 +86,9 @@ class DRL_algorithm:
         
         # Epsilon greedy exploration parameters
         self.epsilon = 1.0
-        self.epsilon_final = 0.01          
+        self.epsilon_final = 0.05        
         self.epsilon_interval = self.epsilon - self.epsilon_final
-        self.epsilon_greedy_frames = 750_000
+        self.epsilon_greedy_frames = 300_000
 
         self.memory = memory
         self.replay_exp_initial_condition = replay_exp_initial_condition        
@@ -96,7 +96,7 @@ class DRL_algorithm:
         # Batch size
         self.batch_size = 32
         # Number of action of the agent
-        self.action_dim = 5
+        self.action_dim = 9
         
         self.discount = 0.99        
         
@@ -117,7 +117,7 @@ class DRL_algorithm:
         if (np.random.uniform(0.0,1.0) < self.epsilon) or (self.memory.storage <= self.replay_exp_initial_condition): 
             # If the random number is less than epsilon
             # Choose a random action
-            action = int(np.random.choice(5,1))
+            action = int(np.random.choice(9,1))
             # Counter of repeated action in the previous step
             if self.p_action == action:
                 self.same_action_counter += 1
@@ -154,7 +154,7 @@ class DRL_algorithm:
             self.p_action = action
 
             if self.same_action_counter == 30:                
-                action = int(np.random.choice(5,1))                                    
+                action = int(np.random.choice(9,1))                                    
             print("Action taken by the network.!!!!!!!!!!!!!!!!!")
             return action
         
@@ -211,7 +211,7 @@ class DRL_algorithm:
         
         self.update_network_counter += 1        
 
-        if self.update_network_counter == 8000:
+        if self.update_network_counter == 800:
             # Copy weights
             self.q_target_net.load_state_dict(self.q_net.state_dict())
             self.update_network_counter = 1

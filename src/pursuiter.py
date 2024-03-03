@@ -48,6 +48,26 @@ class Pursuiter:
                 self.position[0] = 18
             else:
                 self.position[0] -= 2
+        elif action == 'DOUBLE-UP':
+            if self.position[1] < 18:
+                self.position[1] = 18                        
+            else:
+                self.position[1] -= 4
+        elif action == "DOUBLE-DOWN":
+            if self.position[1] > 188:
+                self.position[1] = 188
+            else:
+                self.position[1] += 4
+        elif action == "DOUBLE-RIGHT":
+            if self.position[0] > 188:
+                self.position[0] = 188
+            else:
+                self.position[0] += 4
+        elif action == "DOUBLE-LEFT":
+            if self.position[0] < 18:
+                self.position[0] = 18
+            else:
+                self.position[0] -= 4
         else:
             pass
         return

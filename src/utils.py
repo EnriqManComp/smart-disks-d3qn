@@ -10,8 +10,8 @@ class Utils:
         
         ### REWARDS
         self.REWARDS = {
-            "COLLISION": -1000,            
-            "GOAL": +1000            
+            "COLLISION": -200,            
+            "GOAL": 200            
         } 
         self.danger_zone = 25.0
         self.target_zone = 45.0
@@ -43,10 +43,18 @@ class Utils:
             # Easy task           
             # Spawn the pursuiter within the evasor area of 100 pixels
             # Give 10 pixels of threshold to avoid spawn in the target zone
-            low_limit_x = evasor_pos[0] + self.target_zone + 10
-            low_limit_y = evasor_pos[1] + self.target_zone + 10
-            high_limit_x = evasor_pos[0] + 100
-            high_limit_y = evasor_pos[1] + 100
+            low_limit_x = evasor_pos[0] - 80
+            if low_limit_x < 10:
+                low_limit_x = evasor_pos[0]
+            low_limit_y = evasor_pos[1] - 80
+            if low_limit_y < 10:
+                low_limit_y = evasor_pos[1]
+            high_limit_x = evasor_pos[0] + 80
+            if high_limit_x > 190:
+                high_limit_x = evasor_pos[0]
+            high_limit_y = evasor_pos[1] + 80
+            if high_limit_y > 190:
+                high_limit_y = evasor_pos[1]
             x = np.random.randint(low= low_limit_x , high= high_limit_x)
             y = np.random.randint(low= low_limit_y, high= high_limit_y)
             # If the spawn overlap the evasor area reset the spawn
@@ -54,7 +62,9 @@ class Utils:
 
             dist = self.eucl_distance(x, y, evasor_pos[0], evasor_pos[1])
             
-            while reference_pursuiter.colliderect(evasor.robot) or (dist <= self.target_zone):
+            while (reference_pursuiter.colliderect(evasor.robot) or (dist <= self.target_zone)) \
+                or (reference_pursuiter.colliderect(self.obstacles.left_wall) or reference_pursuiter.colliderect(self.obstacles.top_wall) \
+                 or reference_pursuiter.colliderect(self.obstacles.right_wall) or reference_pursuiter.colliderect(self.obstacles.bottom_wall)):
                 # New x and y
                 x = np.random.randint(low= low_limit_x, high= high_limit_x)
                 y = np.random.randint(low= low_limit_y, high= high_limit_y)
@@ -74,21 +84,26 @@ class Utils:
         # Check left wall collision
         if pursuiter_rect.colliderect(self.obstacles.left_wall):                        
             fc = self.REWARDS["COLLISION"]
+            #print("COLISION#####################################################################################################################")
             done = True
         # Check upper wall collision
         elif pursuiter_rect.colliderect(self.obstacles.top_wall):            
             fc = self.REWARDS["COLLISION"]
+            #print("COLISION#####################################################################################################################")
             done = True
         # Check right wall collision
         elif pursuiter_rect.colliderect(self.obstacles.right_wall):
             fc = self.REWARDS["COLLISION"]
+            #print("COLISION#####################################################################################################################")
             done = True
         # Check bottom wall collision
         elif pursuiter_rect.colliderect(self.obstacles.bottom_wall):
             fc = self.REWARDS["COLLISION"]
+            #print("COLISION#####################################################################################################################")
             done = True
         # Check collision with the evasor
         elif pursuiter_rect.colliderect(evasor_rect):
+            #print("COLISION#####################################################################################################################")
             fc = self.REWARDS["COLLISION"]
             done = True
         # Check if the pursuiter is in the danger zone in the left and the distance to the evasor is not in the target zone (left wall danger zone)
@@ -117,6 +132,7 @@ class Utils:
             # Living positive penalty
             fp = (10 / dist_p_e)
         # Total Reward
+        #print("fc: {0}, fp: {1}, dist_p_e: {2}".format(fc, fp, dist_p_e))
         return (fc + fp), done
 
     def danger_zone_rewards(self, eucl_dist):

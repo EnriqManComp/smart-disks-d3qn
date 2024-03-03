@@ -21,7 +21,11 @@ class ReplayBuffer:
             "UP": 1,
             "DOWN": 2,
             "LEFT": 3,
-            "RIGHT": 4 
+            "RIGHT": 4,
+            "DOUBLE-UP": 5,
+            "DOUBLE-DOWN": 6,
+            "DOUBLE-LEFT": 7,
+            "DOUBLE-RIGHT": 8
         }
 
     def add(self, experience):
