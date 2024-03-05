@@ -211,7 +211,7 @@ class DRL_algorithm:
         
         self.update_network_counter += 1        
 
-        if self.update_network_counter == 800:
+        if self.update_network_counter == 8000:
             # Copy weights
             self.q_target_net.load_state_dict(self.q_net.state_dict())
             self.update_network_counter = 1

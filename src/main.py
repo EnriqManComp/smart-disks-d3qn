@@ -115,14 +115,14 @@ class Environment:
         
         load = True
         if load:
-            self.drl_algorithm.load_models(1320)            
-            self.drl_algorithm.epsilon = 0.5611008800095281         
-            self.memory.experience_ind = 615231         
-            self.memory.storage = 615231 
+            self.drl_algorithm.load_models(1572)            
+            self.drl_algorithm.epsilon = 0.55        
+            self.memory.experience_ind = 704527         
+            self.memory.storage = 704527 
             self.memory.flag = False           
-            save_net_indicator = 1321
+            save_net_indicator = 1573
             
-        for epis in range(1801, self.EPISODES+1):
+        for epis in range(2001, self.EPISODES+1):
             ##### Restart the initial parameters in each episode
             self.done = False           
             
@@ -346,10 +346,11 @@ class Environment:
 
     def test(self):
         # Loading the model
-        self.drl_algorithm.load_models(1320)            
+        self.drl_algorithm.load_models(1622)            
         self.drl_algorithm.epsilon = 0.0
         scores = 0.0
-        for epis in range(20):
+        record_scores = []
+        for epis in range(100):
             print("Scores: ", scores)
             time.sleep(1)
             self.done = False
@@ -408,8 +409,8 @@ class Environment:
                 
                 ### Save metrics
                 # Save score
-                scores += reward
-                                                               
+                
+                                                     
                 # Check end episode condition
                 if (self.done):
                     break
@@ -462,12 +463,21 @@ class Environment:
                                             
                 reward, self.done = self.utils.get_reward(self.pursuiter.robot, self.evasor.robot, self.pursuiter.position, self.evasor.position)                        
                 self.run_time += 1
-
+                scores += reward
+                
                 pygame.display.update()
-
+            record_scores.append(scores)
+        
+        
+        
+        with open("./records/save_record_test.txt", 'a') as file:
+            file.write("Scores: {0}\n".format(self.record_scores))
+                
+        
+        
 
 # Run the algorithm
-train = True
+train = False
 gc.enable()
 gc.collect()
 if train:

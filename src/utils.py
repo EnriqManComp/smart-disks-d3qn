@@ -36,27 +36,36 @@ class Utils:
             # Complex task
             # x
             # Limit in x => 10 (wall limit) + 20 (robot) + 2 [32, 373]
-            #x = np.random.randint(low= 20, high=180)
+            x = np.random.randint(low= 20, high=180)
             # Limit in y => 10 (wall limit) + 20 (robot) + 2 [32, 378]
-            #y = np.random.randint(low= 20, high=180)
+            y = np.random.randint(low= 20, high=180)
 
             # Easy task           
             # Spawn the pursuiter within the evasor area of 100 pixels
             # Give 10 pixels of threshold to avoid spawn in the target zone
-            low_limit_x = evasor_pos[0] - 80
+            '''
+            low_limit_x = evasor_pos[0] - 110
             if low_limit_x < 10:
                 low_limit_x = evasor_pos[0]
-            low_limit_y = evasor_pos[1] - 80
+            low_limit_y = evasor_pos[1] - 110
             if low_limit_y < 10:
                 low_limit_y = evasor_pos[1]
-            high_limit_x = evasor_pos[0] + 80
+            high_limit_x = evasor_pos[0] + 110
             if high_limit_x > 190:
                 high_limit_x = evasor_pos[0]
-            high_limit_y = evasor_pos[1] + 80
+            high_limit_y = evasor_pos[1] + 110
             if high_limit_y > 190:
                 high_limit_y = evasor_pos[1]
+            if low_limit_x > high_limit_x:
+                temp = low_limit_x
+                low_limit_x = high_limit_x
+                high_limit_x = temp
+            if low_limit_y > high_limit_y:
+                temp = low_limit_y
+                low_limit_y = high_limit_y
+                high_limit_y = temp
             x = np.random.randint(low= low_limit_x , high= high_limit_x)
-            y = np.random.randint(low= low_limit_y, high= high_limit_y)
+            y = np.random.randint(low= low_limit_y, high= high_limit_y)'''
             # If the spawn overlap the evasor area reset the spawn
             reference_pursuiter = pygame.draw.circle(screen, (0,0,255), (x, y), 8)            
 
@@ -66,8 +75,8 @@ class Utils:
                 or (reference_pursuiter.colliderect(self.obstacles.left_wall) or reference_pursuiter.colliderect(self.obstacles.top_wall) \
                  or reference_pursuiter.colliderect(self.obstacles.right_wall) or reference_pursuiter.colliderect(self.obstacles.bottom_wall)):
                 # New x and y
-                x = np.random.randint(low= low_limit_x, high= high_limit_x)
-                y = np.random.randint(low= low_limit_y, high= high_limit_y)
+                x = np.random.randint(low= 20, high= 180)
+                y = np.random.randint(low= 20, high= 180)
                 reference_pursuiter = pygame.draw.circle(screen, (0,0,255), (x, y), 8)                
                 dist = self.eucl_distance(x, y, evasor_pos[0], evasor_pos[1])
             
