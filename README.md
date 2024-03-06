@@ -49,4 +49,8 @@ El programa está diseñado en Pygame y consta de las siguientes característica
   </tr>
 </table>
 
+---
 
+## Training results
+
+<div align="center"><img src="result images/Training_results.png" alt="Training results"></div>
