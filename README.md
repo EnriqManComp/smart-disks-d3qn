@@ -1,6 +1,17 @@
 # SmartDots (IN DEVELOPMENT ....)
 Este proyecto pretende encontrar una posible solución a un **problema de búsqueda** en un entorno dado con dos jugadores utilizando **Deep Reinforcement Learning**. Además, luego de encontrar un jugador al otro la tarea cambia a **mantener en visibilidad el mayor tiempo posible**.
 
+- [x] Descripción del problema
+- [ ] Memoria y estados
+- [ ] Función de recompensa
+- [ ] Algoritmo utilizado
+- [ ] Arquitectura de NN
+- [ ] Curriculum Learning
+- [ ] Detalles del entrenamiento
+- [ ] Resultados de entrenamiento
+- [ ] Resultado de prueba
+
+
 ---
 
 ## Descripción del entorno
@@ -51,6 +62,12 @@ El programa está diseñado en Pygame y consta de las siguientes característica
 
 ---
 
+## Arquitectura de red neuronal
+
+## Experience Replay
+
+<div align="center"><img src="result images/c_s.png" alt="Training results"></div>
+
 ## Training results
 
-<div align="center"><img src="result images/Training_results.png" alt="Training results"></div>
+<div align="center"><img src="result images/Training_results.png" alt="Training results" width="600"></div>
