@@ -1,5 +1,5 @@
 # SmartDot-Pathfinding
-Este proyecto pretende encontrar una posible solución a un problema de búsqueda en un entorno dado con dos jugadores utilizando Deep Reinforcement Learning. Además, luego de encontrar un jugador al otro la tarea cambia a mantener en visibilidad el mayor tiempo posible.
+Este proyecto pretende encontrar una posible solución a un **problema de búsqueda** en un entorno dado con dos jugadores utilizando **Deep Reinforcement Learning**. Además, luego de encontrar un jugador al otro la tarea cambia a **mantener en visibilidad el mayor tiempo posible**.
 
 ---
 
