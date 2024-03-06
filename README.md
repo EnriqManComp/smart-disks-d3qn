@@ -11,7 +11,7 @@ El programa está diseñado en Pygame y consta de las siguientes característica
 | Obstáculos | Paredes en los bordes del entorno con ancho de 20px |
 | Jugadores | Discos con radio de 8px (azul &rarr; perseguidor, rojo &rarr; evasor ) |
 
-<img src="result images/game environment.png" alt="Entorno"/>
+<div align="center"><img src="result images/game environment.png" alt="Entorno"/></div>
 
 ---
 
