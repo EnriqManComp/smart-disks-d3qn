@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-path = "./records/save_records.txt"
+#path = "./records/save_records.txt"
+path = "./records/save_record_test.txt"
 
 
 records = pd.read_csv(path, header=None)

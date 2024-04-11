@@ -351,7 +351,7 @@ class Environment:
         scores = 0.0
         record_scores = []
         images = []
-        for epis in range(1):
+        for epis in range(100):
             print("Scores: ", scores)
             time.sleep(1)
             self.done = False
@@ -427,7 +427,7 @@ class Environment:
                 
                 print("Run time: ", self.run_time)
                 self.current_state = self.get_capture()                    
-                images.append(Image.fromarray(self.current_state, 'RGB'))
+                #images.append(Image.fromarray(self.current_state, 'RGB'))
                     ###### EXECUTE THE ACTION 
                     # Get lidar observation
                 lidar_current_state = self.utils.lidar_observations(self.pursuiter.position[0], self.pursuiter.position[1], self.evasor)
@@ -470,7 +470,7 @@ class Environment:
             record_scores.append(scores)
         
 
-        images[0].save('show_landing.gif',save_all=True,append_images=images[1:],duration=self.run_time,loop=0) # saving images to a gif
+        #images[0].save('show_landing.gif',save_all=True,append_images=images[1:],duration=self.run_time,loop=0) # saving images to a gif
         
         with open("./records/save_record_test.txt", 'a') as file:
             file.write("Scores: {0}\n".format(record_scores))
