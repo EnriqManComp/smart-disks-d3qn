@@ -346,11 +346,12 @@ class Environment:
 
     def test(self):
         # Loading the model
-        self.drl_algorithm.load_models(1622)            
+        self.drl_algorithm.load_models(1623)            
         self.drl_algorithm.epsilon = 0.0
         scores = 0.0
         record_scores = []
-        for epis in range(100):
+        images = []
+        for epis in range(1):
             print("Scores: ", scores)
             time.sleep(1)
             self.done = False
@@ -426,7 +427,7 @@ class Environment:
                 
                 print("Run time: ", self.run_time)
                 self.current_state = self.get_capture()                    
-
+                images.append(Image.fromarray(self.current_state, 'RGB'))
                     ###### EXECUTE THE ACTION 
                     # Get lidar observation
                 lidar_current_state = self.utils.lidar_observations(self.pursuiter.position[0], self.pursuiter.position[1], self.evasor)
@@ -468,10 +469,11 @@ class Environment:
                 pygame.display.update()
             record_scores.append(scores)
         
-        
+
+        images[0].save('show_landing.gif',save_all=True,append_images=images[1:],duration=self.run_time,loop=0) # saving images to a gif
         
         with open("./records/save_record_test.txt", 'a') as file:
-            file.write("Scores: {0}\n".format(self.record_scores))
+            file.write("Scores: {0}\n".format(record_scores))
                 
         
         
